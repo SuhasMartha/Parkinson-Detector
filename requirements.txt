@@ -1,5 +1,4 @@
-tensorflow==2.20.0
-streamlit==1.40.0
+streamlit
 keras
 joblib
 numpy
@@ -8,7 +7,6 @@ opencv-python-headless
 Pillow
 librosa
 scikit-learn
-mediapipe
 matplotlib
 soundfile
 plotly
