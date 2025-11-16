@@ -9,11 +9,10 @@ librosa
 scikit-learn
 scikit-image
 matplotlib
-soundfile
-sounddevice
 pipwin
 plotly
 scipy
 protobuf
 wavio
 streamlit-drawable-canvas
+audio-recorder-streamlit
