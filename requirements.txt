@@ -8,7 +8,6 @@ Pillow
 librosa
 scikit-learn
 scikit-image
-mediapipe
 matplotlib
 soundfile
 sounddevice
