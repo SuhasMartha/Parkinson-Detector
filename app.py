@@ -12,18 +12,7 @@ import pickle
 import io
 import os
 from pathlib import Path
-# ✅ FIX: Try import sounddevice, but don't fail if not available
-try:
-    import sounddevice as sd
-    SOUNDDEVICE_AVAILABLE = True
-except (OSError, ImportError):
-    SOUNDDEVICE_AVAILABLE = False
-    st.warning("⚠️ Microphone recording not available on this environment. Use file upload instead.")
-
-import soundfile as sf
-from scipy import signal
-from enhanced_speech_analyzer import EnhancedSpeechAnalyzer, display_features_table
-
+from audio_recorder_streamlit import audio_recorder
 from scipy import signal
 from enhanced_speech_analyzer import EnhancedSpeechAnalyzer, display_features_table
 
@@ -1222,52 +1211,67 @@ elif nav_section == "🔬 Detect Models":
             if st.button("📁 Upload Audio", use_container_width=True, key="up_mode"):
                 st.session_state.speech_mode = "upload"
         
-        # RECORD MODE
+        # RECORD MODE - Using audio-recorder-streamlit
         if st.session_state.get('speech_mode') == 'record':
             st.markdown("---")
             st.markdown("#### 🎙️ Record Your Voice")
+            st.info("📝 Works on local and cloud! Click record button below.")
             
-            if SOUNDDEVICE_AVAILABLE:
-                if st.button("⏺️ START RECORDING (5 seconds)", use_container_width=True, key="start_rec"):
-                    try:
-                        st.info("🎙️ Recording... Please speak clearly!")
-                        
-                        sr = 22050
-                        duration = 5
-                        audio_data = sd.rec(int(sr * duration), samplerate=sr, channels=1, dtype='float32')
-                        sd.wait()
-                        
-                        audio_data = np.array(audio_data, dtype=np.float32).flatten()
-                        
-                        st.success("✅ Recording completed!")
-                        st.markdown("---")
-                        st.markdown("#### 🔊 Your Recording")
-                        st.audio(audio_data, sample_rate=sr)
-                        
-                        st.markdown("---")
-                        st.markdown("#### 📊 Analysis Results")
-                        
-                        features = analyzer.extract_features(audio_data)
-                        
-                        if features is None:
-                            st.error("❌ Failed to extract features")
-                        else:
-                            result = analyzer.predict_parkinson(features)
-                            
-                            if result['result'] == '❌ Error':
-                                st.error(result['result'])
-                            elif 'Parkinson' in result['result']:
-                                st.error(f"{result['result']}")
-                                st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
-                            else:
-                                st.success(f"{result['result']}")
-                                st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
+            try:
+                from audio_recorder_streamlit import audio_recorder
+                
+                # Record audio (5 seconds max)
+                audio_bytes = audio_recorder(
+                    text="⏺️ Click to Record",
+                    recording_color="#e74c3c",
+                    neutral_color="#95a5a6",
+                    icon_name="microphone",
+                    icon_size="2x",
+                )
+                
+                if audio_bytes:
+                    st.success("✅ Recording received!")
                     
-                    except Exception as e:
-                        st.error(f"❌ Recording Error: {str(e)}")
-            else:
-                st.warning("🔔 Microphone recording is not available on this platform.")
-                st.info("👉 Please use **Upload Audio** mode instead.")
+                    # Save and process audio
+                    with open("temp_recording.wav", "wb") as f:
+                        f.write(audio_bytes)
+                    
+                    # Load audio
+                    audio_data, sr = librosa.load("temp_recording.wav", sr=22050, mono=True)
+                    audio_data = np.array(audio_data, dtype=np.float32)
+                    
+                    # Display audio player
+                    st.markdown("---")
+                    st.markdown("#### 🔊 Your Recording")
+                    st.audio(audio_bytes, format="audio/wav", sample_rate=sr)
+                    
+                    # Analysis
+                    st.markdown("---")
+                    st.markdown("#### 📊 Analysis Results")
+                    
+                    # Extract features
+                    features = analyzer.extract_features(audio_data)
+                    
+                    if features is None:
+                        st.error("❌ Failed to extract features")
+                    else:
+                        # Predict
+                        result = analyzer.predict_parkinson(features)
+                        
+                        if result['result'] == '❌ Error':
+                            st.error(result['result'])
+                        elif 'Parkinson' in result['result']:
+                            st.error(f"{result['result']}")
+                            st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
+                        else:
+                            st.success(f"{result['result']}")
+                            st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
+            
+            except ImportError:
+                st.error("❌ audio-recorder-streamlit not installed")
+                st.info("Add to requirements.txt: `audio-recorder-streamlit==0.0.8`")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
         
         # UPLOAD MODE
         elif st.session_state.get('speech_mode') == 'upload':
@@ -1275,28 +1279,38 @@ elif nav_section == "🔬 Detect Models":
             st.markdown("#### 📁 Upload Audio File")
             st.info("📝 Supported formats: WAV, MP3, M4A, OGG")
             
-            uploaded_file = st.file_uploader("Choose an audio file", type=['wav', 'mp3', 'm4a', 'ogg'], key="audio_upload")
+            uploaded_file = st.file_uploader(
+                "Choose an audio file",
+                type=['wav', 'mp3', 'm4a', 'ogg'],
+                key="audio_upload"
+            )
             
             if uploaded_file is not None:
                 try:
-                    with open('temp_audio.wav', 'wb') as f:
+                    # Save uploaded file
+                    with open('temp_upload.wav', 'wb') as f:
                         f.write(uploaded_file.getbuffer())
                     
-                    audio_data, sr = librosa.load('temp_audio.wav', sr=22050)
-                    audio_data = np.array(audio_data, dtype=np.float32).flatten()
+                    # Load audio
+                    audio_data, sr = librosa.load('temp_upload.wav', sr=22050, mono=True)
+                    audio_data = np.array(audio_data, dtype=np.float32)
                     
+                    # Display audio
                     st.markdown("---")
                     st.markdown("#### 🔊 Uploaded Audio")
-                    st.audio(audio_data, sample_rate=sr)
+                    st.audio(uploaded_file, format=f"audio/{uploaded_file.name.split('.')[-1]}")
                     
+                    # Analysis
                     st.markdown("---")
                     st.markdown("#### 📊 Analysis Results")
                     
+                    # Extract features
                     features = analyzer.extract_features(audio_data)
                     
                     if features is None:
                         st.error("❌ Failed to extract features")
                     else:
+                        # Predict
                         result = analyzer.predict_parkinson(features)
                         
                         if result['result'] == '❌ Error':
@@ -1312,12 +1326,11 @@ elif nav_section == "🔬 Detect Models":
                     st.error(f"❌ Upload Error: {str(e)}")
         
         else:
-            st.info("👆 Select a mode above to start")    
-    
-        
-elif nav_section == "🤖 Chatbot":
-    from chatbot import create_chatbot
-    create_chatbot()
+            st.info("👆 Select a mode above to start")
+            
+    elif nav_section == "🤖 Chatbot":
+        from chatbot import create_chatbot
+        create_chatbot()
 
 st.markdown("---")
 st.markdown("""
