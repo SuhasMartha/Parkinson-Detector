@@ -1327,10 +1327,10 @@ elif nav_section == "🔬 Detect Models":
         
         else:
             st.info("👆 Select a mode above to start")
-            
-    elif nav_section == "🤖 Chatbot":
-        from chatbot import create_chatbot
-        create_chatbot()
+
+elif nav_section == "🤖 Chatbot":
+    from chatbot import create_chatbot
+    create_chatbot()
 
 st.markdown("---")
 st.markdown("""
