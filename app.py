@@ -12,8 +12,18 @@ import pickle
 import io
 import os
 from pathlib import Path
-import sounddevice as sd
+# ✅ FIX: Try import sounddevice, but don't fail if not available
+try:
+    import sounddevice as sd
+    SOUNDDEVICE_AVAILABLE = True
+except (OSError, ImportError):
+    SOUNDDEVICE_AVAILABLE = False
+    st.warning("⚠️ Microphone recording not available on this environment. Use file upload instead.")
+
 import soundfile as sf
+from scipy import signal
+from enhanced_speech_analyzer import EnhancedSpeechAnalyzer, display_features_table
+
 from scipy import signal
 from enhanced_speech_analyzer import EnhancedSpeechAnalyzer, display_features_table
 
@@ -1199,10 +1209,8 @@ elif nav_section == "🔬 Detect Models":
     elif model_section == "🎤 Speech Analysis":
         st.markdown("### 🎤 Speech Analysis - Parkinson's Detection")
         
-        # Initialize analyzer
         analyzer = EnhancedSpeechAnalyzer(sr=22050)
         
-        # Input mode selection
         st.markdown("**Select Input Mode:**")
         col1, col2 = st.columns(2)
         
@@ -1219,95 +1227,78 @@ elif nav_section == "🔬 Detect Models":
             st.markdown("---")
             st.markdown("#### 🎙️ Record Your Voice")
             
-            if st.button("⏺️ START RECORDING (5 seconds)", use_container_width=True, key="start_rec"):
-                try:
-                    import sounddevice as sd
-                    import numpy as np
-                    
-                    st.info("🎙️ Recording... Please speak clearly!")
-                    
-                    # Record
-                    sr = 22050
-                    duration = 5
-                    audio_data = sd.rec(int(sr * duration), samplerate=sr, channels=1, dtype='float32')
-                    sd.wait()
-                    
-                    # Convert to proper format
-                    audio_data = np.array(audio_data, dtype=np.float32).flatten()
-                    
-                    st.success("✅ Recording completed!")
-                    
-                    # Display audio player
-                    st.markdown("---")
-                    st.markdown("#### 🔊 Your Recording")
-                    st.audio(audio_data, sample_rate=sr)
-                    
-                    # Analysis
-                    st.markdown("---")
-                    st.markdown("#### 📊 Analysis Results")
-                    
-                    # Extract features
-                    features = analyzer.extract_features(audio_data)
-                    
-                    if features is None:
-                        st.error("❌ Failed to extract features")
-                    else:
-                        # Predict
-                        result = analyzer.predict_parkinson(features)
+            if SOUNDDEVICE_AVAILABLE:
+                if st.button("⏺️ START RECORDING (5 seconds)", use_container_width=True, key="start_rec"):
+                    try:
+                        st.info("🎙️ Recording... Please speak clearly!")
                         
-                        # Display result
-                        if result['result'] == '❌ Error':
-                            st.error(result['result'])
-                        elif 'Parkinson' in result['result']:
-                            st.error(f"{result['result']}")
-                            st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
+                        sr = 22050
+                        duration = 5
+                        audio_data = sd.rec(int(sr * duration), samplerate=sr, channels=1, dtype='float32')
+                        sd.wait()
+                        
+                        audio_data = np.array(audio_data, dtype=np.float32).flatten()
+                        
+                        st.success("✅ Recording completed!")
+                        st.markdown("---")
+                        st.markdown("#### 🔊 Your Recording")
+                        st.audio(audio_data, sample_rate=sr)
+                        
+                        st.markdown("---")
+                        st.markdown("#### 📊 Analysis Results")
+                        
+                        features = analyzer.extract_features(audio_data)
+                        
+                        if features is None:
+                            st.error("❌ Failed to extract features")
                         else:
-                            st.success(f"{result['result']}")
-                            st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
-                
-                except Exception as e:
-                    st.error(f"❌ Recording Error: {str(e)}")
+                            result = analyzer.predict_parkinson(features)
+                            
+                            if result['result'] == '❌ Error':
+                                st.error(result['result'])
+                            elif 'Parkinson' in result['result']:
+                                st.error(f"{result['result']}")
+                                st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
+                            else:
+                                st.success(f"{result['result']}")
+                                st.write(f"**Confidence Level:** {result['confidence']*100:.2f}%")
+                    
+                    except Exception as e:
+                        st.error(f"❌ Recording Error: {str(e)}")
+            else:
+                st.warning("🔔 Microphone recording is not available on this platform.")
+                st.info("👉 Please use **Upload Audio** mode instead.")
         
         # UPLOAD MODE
         elif st.session_state.get('speech_mode') == 'upload':
             st.markdown("---")
             st.markdown("#### 📁 Upload Audio File")
+            st.info("📝 Supported formats: WAV, MP3, M4A, OGG")
             
-            uploaded_file = st.file_uploader("Choose an audio file (WAV, MP3, M4A)", type=['wav', 'mp3', 'm4a', 'ogg'])
+            uploaded_file = st.file_uploader("Choose an audio file", type=['wav', 'mp3', 'm4a', 'ogg'], key="audio_upload")
             
             if uploaded_file is not None:
                 try:
-                    import numpy as np
-                    
-                    # Save uploaded file temporarily
                     with open('temp_audio.wav', 'wb') as f:
                         f.write(uploaded_file.getbuffer())
                     
-                    # Load audio
                     audio_data, sr = librosa.load('temp_audio.wav', sr=22050)
-                    
-                    # Convert to proper format
                     audio_data = np.array(audio_data, dtype=np.float32).flatten()
                     
-                    # Display audio player
                     st.markdown("---")
                     st.markdown("#### 🔊 Uploaded Audio")
                     st.audio(audio_data, sample_rate=sr)
                     
-                    # Analysis
                     st.markdown("---")
                     st.markdown("#### 📊 Analysis Results")
                     
-                    # Extract features
                     features = analyzer.extract_features(audio_data)
                     
                     if features is None:
                         st.error("❌ Failed to extract features")
                     else:
-                        # Predict
                         result = analyzer.predict_parkinson(features)
                         
-                        # Display result
                         if result['result'] == '❌ Error':
                             st.error(result['result'])
                         elif 'Parkinson' in result['result']:
@@ -1323,6 +1314,7 @@ elif nav_section == "🔬 Detect Models":
         else:
             st.info("👆 Select a mode above to start")    
     
+        
 elif nav_section == "🤖 Chatbot":
     from chatbot import create_chatbot
     create_chatbot()
