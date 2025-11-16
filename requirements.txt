@@ -7,10 +7,14 @@ opencv-python-headless
 Pillow
 librosa
 scikit-learn
+scikit-image
 mediapipe
 matplotlib
 soundfile
+sounddevice
+pipwin
 plotly
 scipy
-scikit-image
 protobuf
+wavio
+streamlit-drawable-canvas

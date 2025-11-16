@@ -1,8 +1,3 @@
-"""
-Configuration for SuhasMartha/Parkinson-Detector
-Customized for existing models in repository
-"""
-
 # Model paths - CUSTOMIZED FOR YOUR REPOSITORY
 MODEL_CONFIG = {
     "MRI": {
