@@ -1085,19 +1085,15 @@ elif nav_section == "ℹ️ About":
         """)
     
     with about_tabs[4]:
-        st.markdown("### Credits & References")
+        st.markdown("### Credits")
         
         st.markdown("""
         #### Developer
-        - **Suhas Martha** - Lead Developer
+        - **Suhas Martha**
         - Email: suhasmartha@gmail.com
-        - GitHub: SuhasMartha
+        - GitHub: [SuhasMartha](https://github.com/SuhasMartha)
+        - LinkedIn: [suhas-martha](https://www.linkedin.com/in/suhasmartha)
         
-        #### References & Inspiration
-        - **Parkonix**: Sai Jeevan Puchakayala
-        - **Parkinson's Detector**: Yash Singh
-        - **Prodromal Parkinson**: Dante Trabassi
-        - **SVC Implementation**: sugam21
         
         #### Libraries Used
         - Streamlit, TensorFlow, Keras, scikit-learn
